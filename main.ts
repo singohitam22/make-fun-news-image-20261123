@@ -70,6 +70,9 @@ const bytes = readFileSync(here);
 if (bytes.length > LIMIT_BYTES) {
   die(`entry.png is ${bytes.length} bytes, above the 1 MiB limit`);
 }
+if (bytes.length < 50 * 1024) {
+  die(`entry.png is only ${bytes.length} bytes, suspiciously small for a full front page`);
+}
 if (bytes.length < 45) die('entry.png is too small to be a valid PNG');
 for (let i = 0; i < PNG_MAGIC.length; i++) {
   if (bytes[i] !== PNG_MAGIC[i]) die('entry.png is not a PNG file');
@@ -174,6 +177,21 @@ if (colourCounts.size < 16) {
 }
 if (topCount / sampled > 0.99) {
   die(`entry.png is ${(100 * topCount / sampled).toFixed(1)}% one colour, looks blank`);
+}
+
+// The front page ends with a black "ALSO IN THE NEWS" strip: rows 910-990
+// must be mostly near-black. A page missing its footer band fails here.
+let dark = 0;
+let stripSampled = 0;
+for (let y = 910; y < 990; y += 4) {
+  for (let x = 0; x < width; x += 8) {
+    const i = (y * width + x) * 3;
+    stripSampled++;
+    if (px[i] < 40 && px[i + 1] < 40 && px[i + 2] < 40) dark++;
+  }
+}
+if (dark / stripSampled < 0.2) {
+  die(`entry.png footer band is only ${(100 * dark / stripSampled).toFixed(1)}% dark, the ALSO strip looks missing`);
 }
 
 const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
